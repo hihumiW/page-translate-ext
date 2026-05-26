@@ -21,7 +21,6 @@ const BLOCKED_TAGS = new Set([
   "iframe",
   "canvas",
   "svg",
-  "video",
   "audio",
   "noscript",
   "template",
@@ -88,6 +87,22 @@ const SAFE_ATTRIBUTE_NAMES = new Set([
   "scope",
   "start",
   "type",
+  
+  // 多媒体核心属性白名单
+  "src",
+  "alt",
+  "srcset",
+  "sizes",
+  "controls",
+  "poster",
+  "preload",
+  "autoplay",
+  "loop",
+  "muted",
+  "playsinline",
+  "media",
+  "width",
+  "height",
 ]);
 
 // 这些结构标签即使自身盒子很小，也会影响阅读结构，不能按尺寸直接过滤。
