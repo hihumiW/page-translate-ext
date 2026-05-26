@@ -18,6 +18,8 @@ import {
   FileText,
   Languages,
   Minimize2,
+  Maximize2,
+  Minus,
   X,
   AlertCircle,
   Loader2,
@@ -90,6 +92,8 @@ export function TranslationWindow({
   const [isVisible, setIsVisible] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [preMaxLayout, setPreMaxLayout] = useState<{ size: WindowSize; position: WindowPosition } | null>(null);
 
   // 初始化载入用户的主题配置，若无则根据网页深浅色自适应
   useEffect(() => {
@@ -120,6 +124,33 @@ export function TranslationWindow({
     const nextTheme = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
     void browser.storage.local.set({ "pageTranslate.theme": nextTheme });
+  };
+
+  const handleMaximize = () => {
+    setPreMaxLayout({ size, position });
+    const targetSize = {
+      width: window.innerWidth - VIEWPORT_EDGE_PADDING * 2,
+      height: window.innerHeight - VIEWPORT_EDGE_PADDING * 2,
+    };
+    const targetPosition = {
+      x: VIEWPORT_EDGE_PADDING,
+      y: VIEWPORT_EDGE_PADDING,
+    };
+    setSize(targetSize);
+    setPosition(targetPosition);
+    setIsMaximized(true);
+  };
+
+  const handleRestoreSize = () => {
+    if (preMaxLayout) {
+      setSize(preMaxLayout.size);
+      setPosition(preMaxLayout.position);
+    } else {
+      const defaultSize = getDefaultSize(window.innerWidth, window.innerHeight);
+      setSize(defaultSize);
+      setPosition(getDefaultPosition(window.innerWidth, defaultSize.width));
+    }
+    setIsMaximized(false);
   };
 
   // 左右滚动容器的 Refs 和防止联动死锁的主动滚动锁
@@ -169,6 +200,7 @@ export function TranslationWindow({
     setPosition((currentPosition) =>
       clampPosition(currentPosition, nextSize, viewport.width, viewport.height),
     );
+    setIsMaximized(false);
   };
 
   const handleResizeStop = (
@@ -188,6 +220,7 @@ export function TranslationWindow({
 
     setSize(nextSize);
     setPosition(nextPosition);
+    setIsMaximized(false);
     onLayoutChange?.({ size: nextSize, position: nextPosition });
   };
 
@@ -200,6 +233,7 @@ export function TranslationWindow({
     );
 
     setPosition(nextPosition);
+    setIsMaximized(false);
     onLayoutChange?.({ size, position: nextPosition });
   };
 
@@ -363,8 +397,29 @@ export function TranslationWindow({
                   className="text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-sm"
                   onClick={() => setIsMinimized(true)}
                 >
-                  <Minimize2 className="h-4 w-4" />
+                  <Minus className="h-4 w-4" />
                 </Button>
+                {isMaximized ? (
+                  <Button
+                    aria-label="还原窗口大小"
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-sm"
+                    onClick={handleRestoreSize}
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    aria-label="最大化翻译弹窗"
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-sm"
+                    onClick={handleMaximize}
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   aria-label="关闭翻译弹窗"
                   variant="ghost"

@@ -10,7 +10,7 @@ export interface ReadableSnapshot {
 // 但复制到翻译弹窗后可能因为样式环境变化而显形，因此快照阶段直接过滤。
 const MIN_VISIBLE_WIDTH = 4;
 const MIN_VISIBLE_HEIGHT = 4;
-const MAX_READABLE_SPACING = 24;
+const MAX_READABLE_SPACING = 32;
 
 // 这些标签本身不属于阅读内容，或者无法安全、稳定地静态复刻到翻译弹窗中。
 const BLOCKED_TAGS = new Set([
@@ -87,7 +87,7 @@ const SAFE_ATTRIBUTE_NAMES = new Set([
   "scope",
   "start",
   "type",
-  
+
   // 多媒体核心属性白名单
   "src",
   "alt",
@@ -169,8 +169,7 @@ export function createReadableDomSnapshot(
     copySafeAttributes(node, clone);
     copyReadableStyles(node, clone);
 
-    const nextInSkipTranslate =
-      inSkipTranslate || tagName === "pre";
+    const nextInSkipTranslate = inSkipTranslate || tagName === "pre";
 
     for (const child of Array.from(node.childNodes)) {
       const clonedChild = cloneSafeNode(child, nextInSkipTranslate);
@@ -229,16 +228,10 @@ function copyReadableStyles(source: HTMLElement, target: HTMLElement) {
     .filter(Boolean)
     .join(" ");
 
-  const backgroundColor = computedStyle.getPropertyValue("background-color");
-  const simpleBackground =
-    backgroundColor && backgroundColor !== "rgba(0, 0, 0, 0)"
-      ? ` background-color: ${backgroundColor};`
-      : "";
-
   // 给快照节点补充宽度约束，避免原网页中的超宽表格或 flex 子项撑破翻译弹窗。
   target.setAttribute(
     "style",
-    `${styleText}${simpleBackground} max-width: 100%; box-sizing: border-box;`,
+    `${styleText} max-width: 100%; box-sizing: border-box;`,
   );
 }
 

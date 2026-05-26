@@ -166,9 +166,19 @@
   color: #cbd5e1 !important;
 }
 
-/* 强制非代码块元素在对照翻译弹窗中继承容器本身的字色，彻底解决深浅色模式切换与原网页样式错配时的字体看不清问题 */
-.page-translate-original-content *:not(pre, pre *, code) {
+/* 强制非代码块与非高亮元素在对照翻译弹窗中继承容器本身的字色，彻底解决深浅色模式切换与原网页样式错配时的字体看不清问题 */
+.page-translate-original-content *:not(pre, pre *, code, mark, mark *) {
   color: inherit !important;
+}
+
+/* 统一规范白天模式下的网页高亮 mark 样式 */
+.page-translate-original-content mark {
+  background-color: #fef08a !important; /* yellow-200 */
+  color: #854d0e !important; /* yellow-800 */
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: 0 2px;
+  font-weight: 500;
 }
 
 /* 即使是拷贝过来的链接、加粗、斜体等，若没有内联 color，也在深色卡片内赋予高对比度的默认颜色 */
@@ -181,6 +191,15 @@
 .dark .page-translate-original-content code {
   color: #f472b6 !important; /* pink-400 */
   background-color: rgb(51 65 85 / 0.5) !important;
+}
+
+/* 统一规范暗黑模式下的网页高亮 mark 样式 */
+.dark .page-translate-original-content mark {
+  background-color: rgba(202, 138, 4, 0.25) !important; /* yellow-600 带透明度 */
+  color: #fde047 !important; /* yellow-300 */
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: 4px;
+  padding: 0px 3px;
 }
 
 * {

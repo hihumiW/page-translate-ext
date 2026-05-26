@@ -16,6 +16,7 @@ import {
 import { createSelectionController } from "@/utils/dom/selection-controller";
 import App from "./popup/App";
 import popupStyles from "./popup/style.css?inline";
+import shadowStyles from "./_content.css?raw";
 import { getLLMConfig } from "@/utils/storage/config";
 import {
   htmlToTranslationXml,
@@ -316,34 +317,7 @@ export default defineContentScript({
       position: "modal",
       zIndex: 2147483647,
       isolateEvents: true,
-      css: `
-        ${popupStyles}
-
-        :host {
-          all: initial;
-        }
-
-        html,
-        body {
-          width: auto;
-          min-width: 0;
-          min-height: 0;
-          margin: 0;
-          overflow: visible;
-          background: transparent;
-          pointer-events: none;
-        }
-
-        #page-translate-floating-root {
-          position: fixed;
-          top: 16px;
-          right: 16px;
-          width: 390px;
-          max-width: calc(100vw - 32px);
-          max-height: calc(100vh - 32px);
-          pointer-events: auto;
-        }
-      `,
+      css: `${popupStyles}\n${shadowStyles}`,
       onMount(uiContainer) {
         const rootElement = document.createElement("div");
         rootElement.id = "page-translate-floating-root";
@@ -374,88 +348,7 @@ export default defineContentScript({
       position: "modal",
       zIndex: 2147483647,
       isolateEvents: true,
-      css: `
-        ${popupStyles}
-
-        :host {
-          all: initial;
-        }
-
-        html,
-        body {
-          width: auto;
-          min-width: 0;
-          min-height: 0;
-          margin: 0;
-          overflow: visible;
-          background: transparent;
-          pointer-events: none;
-        }
-
-        #page-translate-window-root {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-        }
-
-        .react-resizable {
-          position: relative;
-        }
-
-        .react-resizable-handle {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          width: 42px;
-          height: 42px;
-          cursor: se-resize;
-          border-bottom-right-radius: 24px;
-          background: linear-gradient(135deg, transparent 0%, transparent 45%, rgba(226, 232, 240, 0.72) 100%);
-          transition: background 160ms ease;
-        }
-
-        .react-resizable-handle:hover {
-          background: linear-gradient(135deg, transparent 0%, transparent 38%, rgba(203, 213, 225, 0.86) 100%);
-        }
-
-        
-  
-    
-        .react-resizable-handle::after {
-            content: "";
-            position: absolute;
-            border-right: 2px solid rgba(100, 116, 139, 0.72);
-            border-bottom: 2px solid rgba(100, 116, 139, 0.72);
-            border-bottom-right-radius: 16px;
-            pointer-events: none;
-            right: 8px;
-            bottom: 9px;
-            width: 13px;
-            height: 13px;
-        }
-
-        .page-translate-original-content {
-          color: #0f172a;
-          font-size: 14px;
-          line-height: 1.7;
-          overflow-wrap: anywhere;
-        }
-
-        .page-translate-original-content * {
-          max-width: 100%;
-        }
-
-        .page-translate-original-content table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .page-translate-original-content pre,
-        .page-translate-original-content code {
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-      `,
+      css: `${popupStyles}\n${shadowStyles}`,
       onMount(uiContainer) {
         const rootElement = document.createElement("div");
         rootElement.id = "page-translate-window-root";
