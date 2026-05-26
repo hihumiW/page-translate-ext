@@ -312,12 +312,23 @@ export default defineContentScript({
       void runWithConcurrencyLimit(tasks, 6);
     };
 
+    const processCss = (cssText: string) => {
+      // 将 CSS 中的 rem 单位动态转换为 px（以 1rem = 16px 为基准），
+      // 彻底避免宿主网页根元素（html）的 font-size 缩放比例对插件样式的干扰。
+      return cssText.replace(/(-?\d*\.?\d+)rem/g, (_, val) => {
+        const pxVal = parseFloat(val) * 16;
+        return `${pxVal}px`;
+      });
+    };
+
+    const finalCss = processCss(`${popupStyles}\n${shadowStyles}`);
+
     const popupUi = await createShadowRootUi(ctx, {
       name: "page-translate-floating-popup",
       position: "modal",
       zIndex: 2147483647,
       isolateEvents: true,
-      css: `${popupStyles}\n${shadowStyles}`,
+      css: finalCss,
       onMount(uiContainer) {
         const rootElement = document.createElement("div");
         rootElement.id = "page-translate-floating-root";
@@ -348,7 +359,7 @@ export default defineContentScript({
       position: "modal",
       zIndex: 2147483647,
       isolateEvents: true,
-      css: `${popupStyles}\n${shadowStyles}`,
+      css: finalCss,
       onMount(uiContainer) {
         const rootElement = document.createElement("div");
         rootElement.id = "page-translate-window-root";
