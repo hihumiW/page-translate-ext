@@ -107,10 +107,64 @@ export function hasReadableText(element: HTMLElement): boolean {
   );
 }
 
+export function isElementVisible(element: HTMLElement): boolean {
+  const computedStyle = window.getComputedStyle(element);
+  return (
+    computedStyle.display !== "none" &&
+    computedStyle.visibility !== "hidden" &&
+    computedStyle.visibility !== "collapse" &&
+    Number(computedStyle.opacity) !== 0
+  );
+}
+
 export function createReadableDomSnapshot(
   element: HTMLElement,
 ): ReadableSnapshot {
   const wrapper = document.createElement("div");
+  let textIdCounter = 0;
+
+  function cloneSafeNode(
+    node: Node,
+    inSkipTranslate: boolean = false,
+  ): Node | null {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textContent = node.textContent || "";
+      const normalized = textContent.replace(/\s+/g, " ").trim();
+      if (normalized.length === 0 || inSkipTranslate) {
+        // 纯空白节点或跳过翻译标签内部的文本节点，不包裹 span 且不分配 id，节约 LLM tokens
+        return document.createTextNode(textContent);
+      }
+
+      textIdCounter++;
+      const id = `t-${textIdCounter}`;
+
+      const span = document.createElement("span");
+      span.setAttribute("data-translate-id", id);
+      span.textContent = textContent;
+      return span;
+    }
+
+    if (!(node instanceof HTMLElement)) return null;
+
+    const tagName = node.tagName.toLowerCase();
+    if (BLOCKED_TAGS.has(tagName)) return null;
+    if (!isElementVisibleForSnapshot(node)) return null;
+
+    const clone = document.createElement(tagName);
+    copySafeAttributes(node, clone);
+    copyReadableStyles(node, clone);
+
+    const nextInSkipTranslate =
+      inSkipTranslate || tagName === "pre";
+
+    for (const child of Array.from(node.childNodes)) {
+      const clonedChild = cloneSafeNode(child, nextInSkipTranslate);
+      if (clonedChild) clone.append(clonedChild);
+    }
+
+    return clone;
+  }
+
   const clonedNode = cloneSafeNode(element);
 
   // 选中元素可能只有危险节点、隐藏节点或空白文本；此时返回空快照，由调用方决定是否提示用户。
@@ -120,30 +174,6 @@ export function createReadableDomSnapshot(
     html: wrapper.innerHTML,
     textLength: normalizeText(wrapper.textContent || "").length,
   };
-}
-
-function cloneSafeNode(node: Node): Node | null {
-  if (node.nodeType === Node.TEXT_NODE) {
-    // 文本节点是否可见由父元素决定；父元素被过滤后，这里的文本自然不会进入快照。
-    return document.createTextNode(node.textContent || "");
-  }
-
-  if (!(node instanceof HTMLElement)) return null;
-
-  const tagName = node.tagName.toLowerCase();
-  if (BLOCKED_TAGS.has(tagName)) return null;
-  if (!isElementVisibleForSnapshot(node)) return null;
-
-  const clone = document.createElement(tagName);
-  copySafeAttributes(node, clone);
-  copyReadableStyles(node, clone);
-
-  for (const child of Array.from(node.childNodes)) {
-    const clonedChild = cloneSafeNode(child);
-    if (clonedChild) clone.append(clonedChild);
-  }
-
-  return clone;
 }
 
 function copySafeAttributes(source: HTMLElement, target: HTMLElement) {
@@ -223,7 +253,7 @@ function isOversizedPixelValue(propertyValue: string): boolean {
   return Math.abs(Number(match[1])) > MAX_READABLE_SPACING;
 }
 
-function isElementVisibleForSnapshot(element: HTMLElement): boolean {
+export function isElementVisibleForSnapshot(element: HTMLElement): boolean {
   const computedStyle = window.getComputedStyle(element);
   const tagName = element.tagName.toLowerCase();
 

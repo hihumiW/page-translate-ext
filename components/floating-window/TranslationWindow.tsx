@@ -1,5 +1,5 @@
 // 该组件负责渲染网页内的对照翻译弹窗。
-// 当前阶段只展示原文快照和译文占位，同时提供拖拽、缩放、关闭隐藏和最小化恢复能力。
+// 提供拖拽、缩放、关闭隐藏、最小化恢复、等高骨架屏、以及双栏段落精准同步滚动能力。
 
 import {
   useEffect,
@@ -14,15 +14,30 @@ import Draggable, {
   type DraggableEvent,
 } from "react-draggable";
 import { ResizableBox, type ResizeCallbackData } from "react-resizable";
-import { FileText, Languages, Maximize2, Minimize2, X } from "lucide-react";
+import {
+  FileText,
+  Languages,
+  Minimize2,
+  X,
+  AlertCircle,
+  Loader2,
+  Sun,
+  Moon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { getTranslatedHtml } from "@/utils/dom/xml-converter";
+import { browser } from "wxt/browser";
+import { isHostPageDark } from "@/utils/dom/theme";
 
 export interface SelectedElementSnapshot {
   id: string;
   index: number;
   summary: string;
   html: string;
+  status?: "translating" | "success" | "error";
+  translations?: Record<string, string>;
+  errorMsg?: string;
 }
 
 interface WindowSize {
@@ -61,6 +76,7 @@ export function TranslationWindow({
   const dragNodeRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
   const snapshotKey = snapshots.map((snapshot) => snapshot.id).join("|");
+
   const [size, setSize] = useState<WindowSize>(
     () =>
       getInitialLayout(initialLayout, window.innerWidth, window.innerHeight)
@@ -73,6 +89,43 @@ export function TranslationWindow({
   );
   const [isVisible, setIsVisible] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // 初始化载入用户的主题配置，若无则根据网页深浅色自适应
+  useEffect(() => {
+    browser.storage.local.get("pageTranslate.theme").then((res) => {
+      const savedTheme = res["pageTranslate.theme"];
+      if (savedTheme === "light" || savedTheme === "dark") {
+        setTheme(savedTheme);
+      } else {
+        setTheme(isHostPageDark() ? "dark" : "light");
+      }
+    });
+  }, [snapshotKey]);
+
+  // 当 theme 状态变更时，将 dark 类名动态增删到父级 Shadow UI 根节点，驱动 CSS 变量及类名覆盖生效
+  useEffect(() => {
+    const rootEl = dragNodeRef.current?.parentElement;
+    const targetEl = rootEl || document.getElementById("page-translate-window-root");
+    if (targetEl) {
+      if (theme === "dark") {
+        targetEl.classList.add("dark");
+      } else {
+        targetEl.classList.remove("dark");
+      }
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    void browser.storage.local.set({ "pageTranslate.theme": nextTheme });
+  };
+
+  // 左右滚动容器的 Refs 和防止联动死锁的主动滚动锁
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
+  const scrollLockRef = useRef<"left" | "right" | null>(null);
 
   useEffect(() => {
     // 视口变化时不重置用户拖拽过的位置，只把窗口尺寸和位置收敛到当前屏幕可见范围内。
@@ -108,7 +161,6 @@ export function TranslationWindow({
   );
 
   const handleResize = (_event: SyntheticEvent, data: ResizeCallbackData) => {
-    // resize 尺寸保存在组件状态中，后续最小化/恢复时可以维持用户刚刚调整过的窗口大小。
     const nextSize = {
       width: data.size.width,
       height: data.size.height,
@@ -140,7 +192,6 @@ export function TranslationWindow({
   };
 
   const handleDragStop = (_event: DraggableEvent, data: DraggableData) => {
-    // 拖拽结束时记录实际位置；恢复最小化时继续使用这个受控位置，不再回到默认右上角。
     const nextPosition = clampPosition(
       { x: data.x, y: data.y },
       size,
@@ -153,11 +204,79 @@ export function TranslationWindow({
   };
 
   const handleRestore = () => {
-    // 恢复前再次 clamp，可以覆盖 DevTools 开关、窗口缩小等导致的旧位置越界。
     setPosition((currentPosition) =>
       clampPosition(currentPosition, size, viewport.width, viewport.height),
     );
     setIsMinimized(false);
+  };
+
+  // 双栏精准段落对齐同步滚动算法
+  const alignScrolling = (
+    sourceEl: HTMLDivElement,
+    targetEl: HTMLDivElement,
+  ) => {
+    const cards = Array.from(
+      sourceEl.querySelectorAll("article[data-snapshot-id]"),
+    );
+    if (cards.length === 0) return;
+
+    const viewportTop = sourceEl.getBoundingClientRect().top;
+    let activeIndex = -1;
+    let relativeOffset = 0;
+
+    // 寻找当前处于源视口顶端（或首个未被完全滑出）的卡片
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const rect = card.getBoundingClientRect();
+      if (rect.bottom > viewportTop + 4) {
+        activeIndex = i;
+        relativeOffset = rect.top - viewportTop; // 记录卡片头部偏离视口顶部的相对距离
+        break;
+      }
+    }
+
+    if (activeIndex !== -1) {
+      const targetCards = Array.from(
+        targetEl.querySelectorAll("article[data-snapshot-id]"),
+      );
+      const targetCard = targetCards[activeIndex];
+      if (targetCard) {
+        // 计算目标卡片在目标容器内的当前相对顶端位置
+        const currentTargetCardTop =
+          targetCard.getBoundingClientRect().top -
+          targetEl.getBoundingClientRect().top;
+        // 利用相对位置偏置的差值，更新目标容器的滚动距离以对齐
+        targetEl.scrollTop += currentTargetCardTop - relativeOffset;
+      }
+    }
+  };
+
+  const handleLeftScroll = () => {
+    if (scrollLockRef.current === "right") {
+      // 释放由右侧联动引起的滚动锁定，避开死循环
+      scrollLockRef.current = null;
+      return;
+    }
+    const leftEl = leftScrollRef.current;
+    const rightEl = rightScrollRef.current;
+    if (!leftEl || !rightEl) return;
+
+    scrollLockRef.current = "left";
+    alignScrolling(leftEl, rightEl);
+  };
+
+  const handleRightScroll = () => {
+    if (scrollLockRef.current === "left") {
+      // 释放由左侧联动引起的滚动锁定，避开死循环
+      scrollLockRef.current = null;
+      return;
+    }
+    const leftEl = leftScrollRef.current;
+    const rightEl = rightScrollRef.current;
+    if (!leftEl || !rightEl) return;
+
+    scrollLockRef.current = "right";
+    alignScrolling(rightEl, leftEl);
   };
 
   if (!isVisible) return null;
@@ -201,7 +320,7 @@ export function TranslationWindow({
           onResizeStop={handleResizeStop}
           resizeHandles={["se"]}
         >
-          <section className="flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-white/90 bg-[linear-gradient(145deg,_rgba(253,254,255,0.98)_0%,_rgba(246,251,255,0.96)_48%,_rgba(255,255,255,0.98)_100%)] text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+          <section className="page-translate-window-panel flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-white/90 bg-[linear-gradient(145deg,_rgba(253,254,255,0.98)_0%,_rgba(246,251,255,0.96)_48%,_rgba(255,255,255,0.98)_100%)] text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
             <header className="page-translate-window-drag-handle flex cursor-move items-center justify-between border-b border-white/65 px-4 py-3.5">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white shadow-soft">
@@ -218,6 +337,19 @@ export function TranslationWindow({
               </div>
 
               <div className="flex items-center gap-1">
+                <Button
+                  aria-label={theme === "light" ? "切换至深色模式" : "切换至浅色模式"}
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-sm"
+                  onClick={handleToggleTheme}
+                >
+                  {theme === "light" ? (
+                    <Moon className="h-4 w-4 text-slate-600" />
+                  ) : (
+                    <Sun className="h-4 w-4 text-amber-500" />
+                  )}
+                </Button>
                 <Button
                   aria-label="最小化翻译弹窗"
                   variant="ghost"
@@ -240,12 +372,18 @@ export function TranslationWindow({
             </header>
 
             <div className="grid min-h-0 flex-1 grid-cols-2 gap-0">
-              <TranslationColumn title="原文" tone="source">
+              <TranslationColumn
+                title="原文"
+                tone="source"
+                scrollRef={leftScrollRef}
+                onScroll={handleLeftScroll}
+              >
                 <div className="space-y-4">
                   {snapshots.map((snapshot) => (
                     <article
                       key={snapshot.id}
-                      className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm"
+                      data-snapshot-id={snapshot.id}
+                      className="page-translate-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm"
                     >
                       <div className="mb-3 flex items-center gap-2 text-xs font-medium text-slate-500">
                         <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600">
@@ -262,22 +400,62 @@ export function TranslationWindow({
                 </div>
               </TranslationColumn>
 
-              <TranslationColumn title="译文" tone="target">
-                <div className="flex min-h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/70 p-6 text-center">
-                  <div className="max-w-[260px] space-y-3">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 text-sky-700">
-                      <Maximize2 className="h-5 w-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-slate-900">
-                        译文待接入
-                      </p>
-                      <p className="text-xs leading-5 text-slate-500">
-                        本轮先完成原文快照和弹窗交互，后续再接入 LLM
-                        翻译结果回填。
-                      </p>
-                    </div>
-                  </div>
+              <TranslationColumn
+                title="译文"
+                tone="target"
+                scrollRef={rightScrollRef}
+                onScroll={handleRightScroll}
+              >
+                <div className="space-y-4">
+                  {snapshots.map((snapshot) => (
+                    <article
+                      key={snapshot.id}
+                      data-snapshot-id={snapshot.id}
+                      className={cn(
+                        "page-translate-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm",
+                        snapshot.status === "translating" &&
+                          "page-translate-skeleton-loading",
+                        snapshot.status === "error" &&
+                          "border-rose-200 bg-rose-50/20",
+                      )}
+                    >
+                      <div className="mb-3 flex items-center justify-between text-xs font-medium text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                            {snapshot.index}
+                          </span>
+                          <span className="line-clamp-1">
+                            {snapshot.summary}
+                          </span>
+                        </div>
+                        {snapshot.status === "translating" && (
+                          <div className="flex items-center text-sky-600 gap-1.5 font-semibold">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                          </div>
+                        )}
+                      </div>
+
+                      {snapshot.status === "error" ? (
+                        <div className="flex items-start gap-2 text-rose-800 text-xs py-4 leading-5">
+                          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                          <span className="break-all">
+                            {snapshot.errorMsg || "翻译出错。"}
+                          </span>
+                        </div>
+                      ) : (
+                        <div
+                          className="page-translate-original-content"
+                          dangerouslySetInnerHTML={{
+                            __html: getTranslatedHtml(
+                              snapshot.html,
+                              snapshot.translations || {},
+                              snapshot.status !== "translating",
+                            ),
+                          }}
+                        />
+                      )}
+                    </article>
+                  ))}
                 </div>
               </TranslationColumn>
             </div>
@@ -292,9 +470,17 @@ interface TranslationColumnProps {
   title: string;
   tone: "source" | "target";
   children: ReactNode;
+  scrollRef?: React.RefObject<HTMLDivElement>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
-function TranslationColumn({ title, tone, children }: TranslationColumnProps) {
+function TranslationColumn({
+  title,
+  tone,
+  children,
+  scrollRef,
+  onScroll,
+}: TranslationColumnProps) {
   return (
     <section className="flex min-h-0 flex-col border-r border-white/70 last:border-r-0">
       <div className="flex items-center gap-2 border-b border-white/65 bg-white/45 px-4 py-2.5">
@@ -308,7 +494,13 @@ function TranslationColumn({ title, tone, children }: TranslationColumnProps) {
           {title}
         </h2>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-4">{children}</div>
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="min-h-0 flex-1 overflow-auto px-4 py-4"
+      >
+        {children}
+      </div>
     </section>
   );
 }

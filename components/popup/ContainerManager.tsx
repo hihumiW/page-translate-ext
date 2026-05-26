@@ -7,10 +7,13 @@ import {
   Settings,
   Trash2,
   X,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 import { statusMeta, type PopupSurface, type SelectedContainer } from "./types";
 
@@ -28,6 +31,12 @@ interface ContainerManagerProps {
   onStartTranslation?: () => void;
   onClose?: () => void;
   translationError?: string;
+  // 追加页面上下文相关属性
+  pageContext: string;
+  onPageContextChange: (value: string) => void;
+  onPageContextSave: () => void;
+  onAutoExtract: () => void;
+  isExtracting?: boolean;
 }
 
 export function ContainerManager({
@@ -44,6 +53,12 @@ export function ContainerManager({
   onStartTranslation,
   onClose,
   translationError,
+  // 析构页面上下文属性
+  pageContext,
+  onPageContextChange,
+  onPageContextSave,
+  onAutoExtract,
+  isExtracting = false,
 }: ContainerManagerProps) {
   // 空列表时展示占位卡片；有数据时展示 content script 同步过来的真实选择结果。
   const hasContainers = containers.length > 0;
@@ -90,7 +105,40 @@ export function ContainerManager({
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3.5">
+      <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5">
+        {/* 页面翻译语境卡片 */}
+        <Card className="border-slate-200/80 bg-white/70 p-3 shadow-none">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>翻译背景提示 (当前网站)</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-slate-400 hover:bg-sky-50 hover:text-sky-700"
+                title="自动提取当前页面语境"
+                onClick={onAutoExtract}
+                disabled={isExtracting}
+              >
+                {isExtracting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-700" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+            <Input
+              className="h-8 text-xs bg-white/90 border-slate-200/80 focus-visible:ring-sky-500"
+              placeholder="输入网页背景帮助 LLM 翻译，点击右侧 AI 按钮可自动提取..."
+              value={pageContext}
+              onChange={(e) => onPageContextChange(e.target.value)}
+              onBlur={onPageContextSave}
+            />
+          </div>
+        </Card>
+
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">

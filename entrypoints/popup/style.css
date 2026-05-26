@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:host {
   --background: 210 33% 98%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
@@ -18,6 +18,164 @@
   --border: 214 26% 88%;
   --input: 214 26% 88%;
   --ring: 212 80% 84%;
+
+  /* 彻底隔离外部继承，为 Shadow DOM 提供干净的基础样式 */
+  color: #0f172a !important;
+  background-color: transparent !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  line-height: 1.5 !important;
+}
+
+/* 深色网页下的变量翻转与适配 */
+:host(.dark),
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 12%;
+  --card-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 16%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 212.7 26.8% 83.9%;
+  
+  color: #f1f5f9 !important; /* 暗黑模式下的根文字颜色 */
+}
+
+/* 常用 Tailwind 颜色类在深色模式下的覆盖 */
+.dark .text-slate-950 {
+  color: #f1f5f9 !important;
+}
+.dark .text-slate-900 {
+  color: #f8fafc !important;
+}
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+.dark .text-sky-700,
+.dark .text-sky-800,
+.dark .text-sky-900 {
+  color: #38bdf8 !important; /* 暗黑下映射为 sky-400 亮蓝 */
+}
+.dark .bg-sky-50,
+.dark .bg-sky-100 {
+  background-color: rgba(7, 89, 133, 0.3) !important; /* sky-900/30 暗蓝底色 */
+  color: #38bdf8 !important;
+}
+.dark .bg-sky-200 {
+  background-color: rgba(7, 89, 133, 0.5) !important;
+  color: #e0f2fe !important;
+}
+
+/* 常用 Tailwind 背景与边框在深色模式下的覆盖 */
+.dark .bg-white {
+  background-color: rgb(30 41 59 / 0.85) !important;
+  color: #f1f5f9 !important;
+  border-color: rgb(71 85 105 / 0.5) !important;
+}
+.dark .bg-white\/70 {
+  background-color: rgb(30 41 59 / 0.6) !important;
+}
+.dark .bg-white\/72 {
+  background-color: rgb(15 23 42 / 0.5) !important;
+  border-color: rgb(51 65 85 / 0.8) !important;
+}
+.dark .bg-white\/50 {
+  background-color: rgb(15 23 42 / 0.6) !important;
+}
+.dark .bg-white\/45 {
+  background-color: rgb(30 41 59 / 0.4) !important;
+}
+.dark .bg-white\/45 svg {
+  color: #cbd5e1 !important;
+}
+.dark .bg-slate-100 {
+  background-color: rgb(51 65 85 / 0.5) !important;
+  color: #cbd5e1 !important;
+}
+.dark .bg-slate-900 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.dark .border-slate-200\/80 {
+  border-color: rgb(51 65 85 / 0.8) !important;
+}
+.dark .border-white\/90 {
+  border-color: rgb(51 65 85 / 0.8) !important;
+}
+.dark .border-white\/70,
+.dark .border-white\/65,
+.dark .border-t-white\/55,
+.dark .border-b-white\/55,
+.dark .border-b-white\/65 {
+  border-color: rgb(71 85 105 / 0.4) !important;
+}
+
+.dark .hover\:bg-white\/80:hover {
+  background-color: rgb(51 65 85 / 0.6) !important;
+}
+.dark .hover\:bg-slate-50:hover {
+  background-color: rgb(30 41 59 / 0.8) !important;
+}
+
+/* 按钮的暗色适配 */
+.dark .bg-stone-800 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+.dark .bg-stone-800:hover {
+  background-color: #ffffff !important;
+}
+
+/* 翻译弹窗与面板专有样式覆盖 */
+.dark .page-translate-window-panel {
+  border-color: rgb(51 65 85 / 0.8) !important;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 48%, rgba(15, 23, 42, 0.98) 100%) !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .page-translate-card {
+  background-color: rgb(30 41 59 / 0.85) !important;
+  border-color: rgb(71 85 105 / 0.5) !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .page-translate-settings-panel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%) !important;
+  color: #f1f5f9 !important;
+}
+
+/* 正文内的特定元素，如果在深色模式下没有在 snapshot 中拷贝内联颜色的元素，继承前景色 */
+.dark .page-translate-original-content {
+  color: #cbd5e1 !important;
+}
+
+/* 即使是拷贝过来的链接、加粗、斜体等，若没有内联 color，也在深色卡片内赋予高对比度的默认颜色 */
+.dark .page-translate-original-content a {
+  color: #38bdf8 !important; /* sky-400 */
+}
+.dark .page-translate-original-content strong {
+  color: #f8fafc !important;
+}
+.dark .page-translate-original-content code {
+  color: #f472b6 !important; /* pink-400 */
+  background-color: rgb(51 65 85 / 0.5) !important;
 }
 
 * {
@@ -45,4 +203,63 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+/* 深色模式下的输入框和卡片样式修正 */
+.dark input,
+.dark textarea {
+  background-color: rgb(30 41 59 / 0.9) !important; /* bg-slate-800 */
+  color: #f1f5f9 !important;
+  border-color: rgb(71 85 105 / 0.5) !important; /* border-slate-600 */
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgb(148 163 184) !important; /* text-slate-400 */
+}
+
+/* 对照翻译节点级骨架屏闪烁特效 */
+[data-translate-id].page-translate-loading-node {
+  color: transparent !important;
+  background-image: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.4) 25%,
+    rgba(203, 213, 225, 0.8) 50%,
+    rgba(226, 232, 240, 0.4) 75%
+  );
+  background-size: 200% 100%;
+  animation: page-translate-skeleton-shine 1.6s infinite linear;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+  text-decoration: none !important;
+  border-bottom: none !important;
+}
+
+/* 暗黑模式下 loading 骨架屏的颜色微调，更深一些以配适暗色卡片 */
+.dark [data-translate-id].page-translate-loading-node {
+  background-image: linear-gradient(
+    90deg,
+    rgba(51, 65, 85, 0.4) 25%,
+    rgba(71, 85, 105, 0.8) 50%,
+    rgba(51, 65, 85, 0.4) 75%
+  );
+}
+
+/* 当父级节点中直系包含正在翻译的 loading 节点时，隐藏其文字下划线和边框以防干扰 */
+.page-translate-original-content *:has(> .page-translate-loading-node) {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  border-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+
+@keyframes page-translate-skeleton-shine {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
 }
