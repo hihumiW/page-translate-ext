@@ -366,10 +366,11 @@ MVP 需要明确处理以下情况：
 - **1800字大粒度逻辑语境分片**：传统物理切碎容器改为逻辑大卡片整体排版与页面阅读连贯性。并在发送请求前在内存逻辑上依“最近块级祖先”将翻译 ID 归类段落，智能限制单并发 Chunks 的字数阈值为 1800 字符，从根本上杜绝了跨 Chunk 句子切断，平衡了翻译的语境与响应速度。
 - **全局并发限流与增量回填**：利用 `runWithConcurrencyLimit` 设置最大并发请求度为 6，防止供应商 API 频率限流；并在 Chunk 响应返回时实时 merge 翻译数据驱动局部卡片重绘，实现平滑的段落流式 Shimmer 渐进回填体验。
 - **骨架屏防死锁安全兜底**：在翻译任务清零时（包含成功、失败及跳过的纯代码块），一律更新快照状态，并在渲染层在翻译非 translating 状态时（即已结束状态）强行剥离尚未回填节点的 `.page-translate-loading-node`，彻底避免漏译造成骨架屏无限卡死。
-- **深色网页主题自适应与变量隔离**：
-  - 新增 [theme.ts](file:///Users/yuanyuanzi_/Documents/page-translate-ext/utils/dom/theme.ts) 提供智能的网页深色模式判定，去掉系统偏好媒体查询以防在深色系统下打开浅色网页（如 npmjs.com）时造成黑底黑字。
-  - 在 content 挂载 UI 阶段自动检测网页环境并为根 Shadow DOM 容器动态添加 `.dark` 类。
-  - 在 `style.css` 中将全局 `:root` 重构为针对 Shadow Root 的 `:host` 声明，实现 CSS 变量的沙箱化隔离以防止外部污染；在 `.dark` 下翻转 HSL 变量并覆盖重写了常用 Tailwind 背景与前景色类（如 `bg-white` 自动映射为暗灰背景，`text-slate-950` 自动映射为白字）。
-- **手动主题切换与本地记忆**：在对照翻译弹窗 Header 右侧增加了太阳/月亮主题切换按钮，支持用户手动覆盖深浅色模式，并配合 `browser.storage.local` 进行本地持久化记忆；同时在深色卡片背景上对 sky 亮蓝色（`sky-400`）进行了高对比度可读性微调，彻底消除了深暗模式下白底白字、黑底黑字的恶性阅读 Bug。
+- **系统主题自适应与默认肤色感知**：
+  - 重构了 [theme.ts](file:///Users/yuanyuanzi_/Documents/page-translate-ext/utils/dom/theme.ts) 中的 `isHostPageDark` 判定，使其直接基于系统的暗色偏好媒体查询 `window.matchMedia("(prefers-color-scheme: dark)").matches` 自动感知系统默认主题，作为 Popup 面板和网页内翻译窗口的初始默认肤色。
+  - 在 content 挂载 UI 阶段，自动获取此默认偏好并为根 Shadow DOM 容器添加 `.dark` 类，实现开箱即用的主题自适应。
+  - 在 `style.css` 中将全局 `:root` 重构为针对 Shadow Root 的 `:host` 声明以防变量污染，并在 `:host(.dark), .dark` 下翻转所有 HSL 颜色变量并覆盖重写常用 Tailwind 背景与前景色类（如 `bg-white` 映射为暗灰背景，`text-slate-950` 映射为白字）。
+- **手动主题切换与本地记忆**：在对照翻译弹窗 Header 右侧增加了太阳/月亮主题切换按钮，支持用户手动一键覆盖深浅色模式，并配合 `browser.storage.local` 进行本地持久化偏好设置记忆，下次翻译自动继承。
+- **万能字色继承规则加固**：为了杜绝在系统默认主题（如深色）与原网页主题错配时克隆节点自带的内联颜色（如黑字）在暗色弹窗下造成黑底黑字的问题，或者在浅色弹窗下渲染浅色字造成白底白字的问题，我们在 `style.css` 中设计并注入了极简的文字字色继承规则：对 `.page-translate-original-content *:not(pre, pre *, code)` 一律强制应用 `color: inherit !important`。这完美解决了所有主题错配下的文本可读性，同时不对代码块和关键字的语法高亮造成任何损害。
 
 当前已全面完成 MVP 阶段所有的核心功能与细节重构，目前不存在未完成任务。
