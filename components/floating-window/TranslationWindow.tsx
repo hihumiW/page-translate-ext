@@ -210,43 +210,49 @@ export function TranslationWindow({
     setIsMinimized(false);
   };
 
-  // 双栏精准段落对齐同步滚动算法
+  // 双栏精准段落级（data-translate-id）微观同步滚动对齐算法
   const alignScrolling = (
     sourceEl: HTMLDivElement,
     targetEl: HTMLDivElement,
   ) => {
-    const cards = Array.from(
-      sourceEl.querySelectorAll("article[data-snapshot-id]"),
-    );
-    if (cards.length === 0) return;
+    // 获取源容器中所有翻译节点
+    const translateNodes = Array.from(
+      sourceEl.querySelectorAll("[data-translate-id]")
+    ) as HTMLElement[];
+    if (translateNodes.length === 0) return;
 
     const viewportTop = sourceEl.getBoundingClientRect().top;
-    let activeIndex = -1;
+    let activeId: string | null = null;
     let relativeOffset = 0;
 
-    // 寻找当前处于源视口顶端（或首个未被完全滑出）的卡片
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      const rect = card.getBoundingClientRect();
+    // 寻找当前最靠近视口顶端（或首个未完全滑出）的翻译子节点作为对焦锚点
+    for (let i = 0; i < translateNodes.length; i++) {
+      const node = translateNodes[i];
+      const rect = node.getBoundingClientRect();
       if (rect.bottom > viewportTop + 4) {
-        activeIndex = i;
-        relativeOffset = rect.top - viewportTop; // 记录卡片头部偏离视口顶部的相对距离
-        break;
+        const id = node.getAttribute("data-translate-id");
+        if (id) {
+          activeId = id;
+          relativeOffset = rect.top - viewportTop; // 记录当前节点距离视口顶部的偏置
+          break;
+        }
       }
     }
 
-    if (activeIndex !== -1) {
-      const targetCards = Array.from(
-        targetEl.querySelectorAll("article[data-snapshot-id]"),
-      );
-      const targetCard = targetCards[activeIndex];
-      if (targetCard) {
-        // 计算目标卡片在目标容器内的当前相对顶端位置
-        const currentTargetCardTop =
-          targetCard.getBoundingClientRect().top -
+    if (activeId) {
+      // 在目标容器中寻找对应 ID 的节点
+      const targetNode = targetEl.querySelector(
+        `[data-translate-id="${activeId}"]`
+      ) as HTMLElement | null;
+      
+      if (targetNode) {
+        // 计算目标节点在目标视口内的相对位置偏置
+        const currentTargetNodeTop =
+          targetNode.getBoundingClientRect().top -
           targetEl.getBoundingClientRect().top;
-        // 利用相对位置偏置的差值，更新目标容器的滚动距离以对齐
-        targetEl.scrollTop += currentTargetCardTop - relativeOffset;
+        
+        // 更新目标容器的滚动位置，使得目标节点以相同的偏置对齐
+        targetEl.scrollTop += currentTargetNodeTop - relativeOffset;
       }
     }
   };

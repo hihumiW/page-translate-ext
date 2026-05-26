@@ -8,9 +8,9 @@ export interface LLMConfig {
 }
 
 export const DEFAULT_CONFIG: LLMConfig = {
-  baseUrl: "https://api.openai.com/v1",
+  baseUrl: "",
   apiToken: "",
-  modelName: "gpt-4o-mini",
+  modelName: "",
   targetLang: "中文",
 };
 
@@ -24,7 +24,7 @@ export async function getLLMConfig(): Promise<LLMConfig> {
   try {
     const stored = await browser.storage.local.get(CONFIG_STORAGE_KEY);
     const config = stored[CONFIG_STORAGE_KEY];
-    return { ...DEFAULT_CONFIG, ...(config as Record<string, any> || {}) };
+    return { ...DEFAULT_CONFIG, ...((config as Record<string, any>) || {}) };
   } catch (error) {
     console.error("Failed to load LLM config:", error);
     return DEFAULT_CONFIG;
@@ -53,7 +53,8 @@ export async function getPageContext(host: string): Promise<string> {
   if (!host) return "";
   try {
     const stored = await browser.storage.local.get(CONTEXTS_STORAGE_KEY);
-    const contexts = (stored[CONTEXTS_STORAGE_KEY] as Record<string, string>) || {};
+    const contexts =
+      (stored[CONTEXTS_STORAGE_KEY] as Record<string, string>) || {};
     return contexts[host] || "";
   } catch (error) {
     console.error(`Failed to load page context for host ${host}:`, error);
@@ -66,12 +67,16 @@ export async function getPageContext(host: string): Promise<string> {
  * - 若内容非空：写入缓存
  * - 若内容为空：删除该域名对应的缓存项，避免存储空数据
  */
-export async function savePageContext(host: string, context: string): Promise<void> {
+export async function savePageContext(
+  host: string,
+  context: string,
+): Promise<void> {
   if (!host) return;
   try {
     const stored = await browser.storage.local.get(CONTEXTS_STORAGE_KEY);
-    const contexts = (stored[CONTEXTS_STORAGE_KEY] as Record<string, string>) || {};
-    
+    const contexts =
+      (stored[CONTEXTS_STORAGE_KEY] as Record<string, string>) || {};
+
     const trimmedContext = context.trim();
     if (trimmedContext !== "") {
       contexts[host] = trimmedContext;
